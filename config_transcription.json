@@ -1,0 +1,12 @@
+{
+    "wav_file_path": "./3speakers.wav",
+    "model_dir": "./../.cache/whisper",
+    "model": "large-v2",
+    "language": "ru",
+    "print_progress": "True",
+    "output_dir": "./output_directory",
+    "output_format": "json",
+    "compute_type": "float32",
+    "max_speakers": "3",
+    "hf_token" : "YOUR_HF_TOKEN"
+}

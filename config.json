@@ -1,0 +1,8 @@
+{
+    "samples_directory": "./speakers_samples",
+    "audio_file": "./3speakers.wav",
+    "diarization_file": "./output_directory/3speakers.json",
+    "output_dir": "./output_directory",
+    "embedding_file":"./speakers_embeddings.npy",
+    "output_file" : "./speaker_recognition.txt"
+}

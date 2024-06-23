@@ -1,0 +1,9 @@
+numpy
+json
+moviepy
+nemo-toolkit
+torchaudio
+soundfile
+scipy
+temp
+whisperx
