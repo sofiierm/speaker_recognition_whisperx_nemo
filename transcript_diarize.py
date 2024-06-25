@@ -15,4 +15,4 @@ compute_type = config['compute_type']
 max_speakers = config['max_speakers']
 hf_token = config['hf_token']
 
-os.system(f"whisperx {wav_file_path} --model_dir {model_dir} --model {model} --language {language} --print_progress {print_progress} --diarize --output_dir {output_dir} --output_format {output_format} --compute_type {compute_type} --max_speakers {max_speakers} --hf_token {hf_token}")
+os.system(f"whisperx {wav_file_path}  --model {model} --language {language} --print_progress {print_progress} --diarize --output_dir {output_dir} --output_format {output_format} --max_speakers {max_speakers} --hf_token {hf_token}")

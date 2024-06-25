@@ -1,12 +1,13 @@
 import os
-import json
 import numpy as np
+import json
+import torch
 import torchaudio
-import soundfile as sf
 from scipy.spatial.distance import cosine
 from tempfile import NamedTemporaryFile
 from get_default_embeddings import model
 
+# Load configuration
 with open('config.json', 'r') as config_file:
     config = json.load(config_file)
 
@@ -15,23 +16,30 @@ diarization_file = config['diarization_file']
 embedding_file = config['embedding_file']
 output_file = config['output_file']
 
-stored_embeddings = np.load(embedding_file, allow_pickle=True).item()
+# Load stored embeddings from the .npz file
+stored_embeddings = {}
+with np.load(embedding_file, allow_pickle=True) as data:
+    for speaker, embedding in data.items():
+        stored_embeddings[speaker] = embedding
 
 with open(diarization_file, 'r', encoding='utf-8') as f:
     diarization_data = json.load(f)
 
-
 def get_embedding(audio_segment, sample_rate):
     with NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
-        sf.write(temp_file.name, audio_segment, sample_rate)
+        # Ensure the audio segment has shape (channels, time)
+        if audio_segment.ndim == 1:
+            audio_segment = audio_segment.unsqueeze(0)
+        if audio_segment.size(0) > 1:
+            audio_segment = torch.mean(audio_segment, dim=0, keepdim=True)
+        torchaudio.save(temp_file.name, audio_segment, sample_rate)
         embedding = model.get_embedding(temp_file.name)
     try:
         os.remove(temp_file.name)
     except FileNotFoundError:
-        print(f"Файл {temp_file.name} не найден для удаления.")
+        print(f"File {temp_file.name} not found for deletion.")
 
     return embedding.cpu().numpy()
-
 
 def match_speaker(embedding, stored_embeddings):
     min_distance = float('inf')
@@ -46,14 +54,12 @@ def match_speaker(embedding, stored_embeddings):
 
     return matched_speaker
 
-
 speaker_embeddings = {}
 audio, sr = torchaudio.load(audio_file_path)
 
 for segment in diarization_data.get('segments', []):
     if 'start' not in segment or 'end' not in segment or 'speaker' not in segment:
-        print(
-            f"Сегмент пропущен из-за отсутствия необходимых ключей: {segment}")
+        print(f"Segment skipped due to missing required keys: {segment}")
         continue
 
     start_time = segment['start']
@@ -62,11 +68,10 @@ for segment in diarization_data.get('segments', []):
 
     start_sample = int(start_time * sr)
     end_sample = int(end_time * sr)
-    audio_segment = audio[0, start_sample:end_sample].numpy()
+    audio_segment = audio[:, start_sample:end_sample]
 
-    if len(audio_segment) == 0:
-        print(
-            f"Пустой аудиосегмент для спикера {speaker_label} с {start_time} до {end_time}")
+    if audio_segment.size(1) == 0:
+        print(f"Empty audio segment for speaker {speaker_label} from {start_time} to {end_time}")
         continue
 
     embedding = get_embedding(audio_segment, sr)
@@ -78,7 +83,6 @@ for segment in diarization_data.get('segments', []):
         speaker_embeddings[speaker_label] = []
     speaker_embeddings[speaker_label].append(embedding)
 
-
 speaker_names = {}
 for speaker_label, embeddings in speaker_embeddings.items():
     avg_embedding = np.mean(embeddings, axis=0)
@@ -87,8 +91,7 @@ for speaker_label, embeddings in speaker_embeddings.items():
 
 for segment in diarization_data['segments']:
     if 'speaker' in segment:
-        segment['speaker'] = speaker_names.get(
-            segment['speaker'], segment['speaker'])
+        segment['speaker'] = speaker_names.get(segment['speaker'], segment['speaker'])
 
 with open(output_file, 'w', encoding='utf-8') as f:
     for segment in diarization_data['segments']:
@@ -96,4 +99,4 @@ with open(output_file, 'w', encoding='utf-8') as f:
         text = segment.get('text', '')
         f.write(f"{speaker}: {text}\n")
 
-print(f"Обновленный файл транскрипции сохранен в {output_file}")
+print(f"Updated transcription file saved")
